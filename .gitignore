@@ -1,0 +1,9 @@
+# Ignore Terraform files that are generated during the execution of Terraform commands
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+
+top_secret.txt
