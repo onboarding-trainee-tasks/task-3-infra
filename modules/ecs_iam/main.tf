@@ -12,6 +12,27 @@ resource "aws_iam_role" "execution" {
         Action = "sts:AssumeRole"
       }
     ]
+  }) # move to IAM module
+}
+
+resource "aws_iam_role_policy" "secrets" {
+  name = "${var.role_name}-secrets"
+  role = aws_iam_role.execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+
+        Resource = var.secret_arns
+      }
+    ]
   })
 }
 

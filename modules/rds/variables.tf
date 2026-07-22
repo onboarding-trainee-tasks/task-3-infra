@@ -1,24 +1,24 @@
-variable subnet_ids {
+variable "subnet_ids" {
   description = "List of subnet IDs for the RDS instance"
   type        = list(string)
 }
 
-variable security_group_ids {
+variable "security_group_ids" {
   description = "List of security group IDs for the RDS instance"
   type        = list(string)
 }
 
-variable db_secret_id {
+variable "db_secret_id" {
   description = "RDS secrets from AWS Secrets Manager"
   type        = any
 }
 
-variable db_name {
+variable "db_name" {
   description = "The name of the database to create"
   type        = string
 }
 
-variable instance_class {
+variable "instance_class" {
   description = "The instance class for the RDS instance"
   type        = string
 }

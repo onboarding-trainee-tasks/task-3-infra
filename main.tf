@@ -53,36 +53,29 @@ module "security_group" {
       allowed_security_groups = []
     }
 
-    open_webui_sg = {
-      name                    = "open_webui_sg"
-      tcp_ingress_ports       = [5000]
-      udp_ingress_ports       = []
-      allowed_cidr_blocks     = []
-      allowed_security_groups = ["alb_sg"]
+    internal_alb_sg = {
+      name = "internal_alb_sg"
+      tcp_ingress_ports = [11434, 9090, 9093]
+      udp_ingress_ports   = []
+      allowed_cidr_blocks = []
+      allowed_security_groups = [
+        "ecs_tasks_sg"
+      ]
     }
 
-    grafana_sg = {
-      name                    = "grafana_sg"
-      tcp_ingress_ports       = [3000]
-      udp_ingress_ports       = []
-      allowed_cidr_blocks     = []
-      allowed_security_groups = ["alb_sg"]
-    }
-
-    ollama_alb_sg = {
-      name                    = "ollama_alb_sg"
-      tcp_ingress_ports       = [11434]
-      udp_ingress_ports       = []
-      allowed_cidr_blocks     = []
-      allowed_security_groups = ["open_webui_sg"]
-    }
-
-    ollama_sg = {
-      name                    = "ollama_sg"
-      tcp_ingress_ports       = [11434]
-      udp_ingress_ports       = []
-      allowed_cidr_blocks     = []
-      allowed_security_groups = ["ollama_alb_sg"]
+    ecs_tasks_sg = {
+      name = "ecs_tasks_sg"
+      tcp_ingress_ports = [
+        3000,  # Grafana
+        8080,  # Open WebUI
+        9090,  # Prometheus
+        9093,  # Alertmanager
+        9100,  # Node Exporter
+        11434  # Ollama
+      ]
+      udp_ingress_ports   = []
+      allowed_cidr_blocks = []
+      allowed_security_groups = ["alb_sg", "internal_alb_sg", "ecs_tasks_sg"]
     }
 
     database_sg = {
@@ -90,20 +83,20 @@ module "security_group" {
       tcp_ingress_ports       = [5432]
       udp_ingress_ports       = []
       allowed_cidr_blocks     = []
-      allowed_security_groups = ["bastion_sg", "open_webui_sg"]
+      allowed_security_groups = ["bastion_sg", "ecs_tasks_sg"]
     }
   }
 }
 
-# module "rds" {
-#   source             = "./modules/rds"
-#   subnet_ids         = module.network.database_subnet_ids
-#   security_group_ids = [module.security_group.sg_ids["database_sg"]]
-#   db_secret_id       = data.aws_secretsmanager_secret_version.rds_secrets_version
-#   db_name            = var.db_name
-#   instance_class     = var.rds_instance_class
-#   allocated_storage  = var.rds_allocated_storage
-# }
+module "rds" {
+  source             = "./modules/rds"
+  subnet_ids         = module.network.database_subnet_ids
+  security_group_ids = [module.security_group.sg_ids["database_sg"]]
+  db_secret_id       = data.aws_secretsmanager_secret_version.rds_secrets_version
+  db_name            = var.db_name
+  instance_class     = var.rds_instance_class
+  allocated_storage  = var.rds_allocated_storage
+}
 
 module "iam" {
   source        = "./modules/iam"
@@ -125,15 +118,15 @@ module "bastion_instance" {
   ami_id               = var.packer_bastion_ami
   iam_instance_profile = module.iam.iam_instance_profile_name
 
-  # user_data = "./scripts/bastion.sh"
+  user_data = "./scripts/bastion.sh"
 
-  # user_data_vars = {
-  #   AWS_REGION    = var.aws_region
-  #   DB_SECRET_ARN = data.aws_secretsmanager_secret.rds_secrets.arn
-  #   DB_HOST       = module.rds.db_host
-  #   DB_PORT       = module.rds.db_port
-  #   DB_NAME       = module.rds.db_name
-  # }
+  user_data_vars = {
+    AWS_REGION    = var.aws_region
+    DB_SECRET_ARN = data.aws_secretsmanager_secret.rds_secrets.arn
+    DB_HOST       = module.rds.db_host
+    DB_PORT       = module.rds.db_port
+    DB_NAME       = module.rds.db_name
+  }
 }
 
 module "ecs_cluster" {
@@ -161,6 +154,8 @@ module "ecs_iam" {
   source = "./modules/ecs_iam"
 
   role_name = "${var.project}-${var.environment}-ecs-execution-role"
+
+  secret_arns = [data.aws_secretsmanager_secret.rds_secrets.arn]
 }
 
 module "alb" {
@@ -168,9 +163,7 @@ module "alb" {
 
   public_lb_name = "${var.project}-${var.environment}-alb"
 
-  public_security_group_ids = [
-    module.security_group.sg_ids["alb_sg"]
-  ]
+  public_security_group_ids = [module.security_group.sg_ids["alb_sg"]]
 
   public_subnet_ids = module.network.public_subnet_ids
   vpc_id            = module.network.vpc_id
@@ -193,19 +186,30 @@ module "alb" {
 
   ollama_lb_name = "${var.project}-${var.environment}-ollama-alb"
 
-  ollama_security_group_ids = [
-    module.security_group.sg_ids["ollama_alb_sg"]
-  ]
+  ollama_security_group_ids = [module.security_group.sg_ids["internal_alb_sg"]]
 
   ollama_subnet_ids = module.network.private_subnet_ids
-
-  ollama_listener_port     = 11434
-  ollama_listener_protocol = "HTTP"
 
   ollama_target_group_name     = "${var.project}-${var.environment}-ollama-tg"
   ollama_target_group_port     = 11434
   ollama_target_group_protocol = "HTTP"
   ollama_health_check_path     = "/api/tags"
+  ollama_listener_port         = 11434
+  ollama_listener_protocol     = "HTTP"
+
+  prometheus_target_group_name     = "${var.project}-${var.environment}-prom-tg"
+  prometheus_target_group_port     = 9090
+  prometheus_target_group_protocol = "HTTP"
+  prometheus_health_check_path     = "/-/healthy"
+  prometheus_listener_port         = 9090
+  prometheus_listener_protocol     = "HTTP"
+
+  alertmanager_target_group_name     = "${var.project}-${var.environment}-alert-tg"
+  alertmanager_target_group_port     = 9093
+  alertmanager_target_group_protocol = "HTTP"
+  alertmanager_health_check_path     = "/-/healthy"
+  alertmanager_listener_port         = 9093
+  alertmanager_listener_protocol     = "HTTP"
 
   target_type = "ip"
 
@@ -227,18 +231,24 @@ module "grafana_service" {
   service_name = "grafana"
   cluster_id   = module.ecs_cluster.cluster_id
 
-  image          = "grafana/grafana:latest"
-  container_port = 3000
+  image = (
+    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/grafana:13.1.1-llm1"
+  )
 
-  cpu           = "256"
-  memory        = "512"
+  node_exporter_image = (
+    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
+  )
+
+  container_port     = 3000
+  node_exporter_port = 9100
+
+  cpu           = 256
+  memory        = 1024
   desired_count = 1
 
   subnet_ids = module.network.private_subnet_ids
 
-  security_group_ids = [
-    module.security_group.sg_ids["grafana_sg"]
-  ]
+  security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
 
   execution_role_arn = module.ecs_iam.execution_role_arn
 
@@ -256,5 +266,155 @@ module "grafana_service" {
     )
 
     GF_SERVER_SERVE_FROM_SUB_PATH = "true"
+  }
+}
+
+module "prometheus_service" {
+  source = "./modules/ecs_service"
+
+  service_name = "prometheus"
+  cluster_id   = module.ecs_cluster.cluster_id
+
+  image = (
+    "public.ecr.aws/l8p0g0w4/prometheus:3.13.0-llm1"
+  )
+
+  node_exporter_image = (
+    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
+  )
+
+  container_port     = 9090
+  node_exporter_port = 9100
+
+  cpu           = 512
+  memory        = 1024
+  desired_count = 1
+
+  subnet_ids = module.network.private_subnet_ids
+
+  security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
+
+  execution_role_arn = module.ecs_iam.execution_role_arn
+
+  target_group_arn = (
+    module.alb.prometheus_target_group_arn
+  )
+
+  registry_arn = (
+    module.service_discovery.service_arns["prometheus"]
+  )
+
+  aws_region = var.aws_region
+}
+
+module "ollama_service" {
+  source = "./modules/ecs_service"
+
+  service_name = "ollama"
+  cluster_id   = module.ecs_cluster.cluster_id
+
+  image = (
+    "public.ecr.aws/l8p0g0w4/ollama-tinyllama:0.32.1-tinyllama-llm1"
+  )
+
+  node_exporter_image = (
+    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
+  )
+
+  container_port     = 11434
+  node_exporter_port = 9100
+
+  cpu           = 1024
+  memory        = 2048
+  desired_count = 2
+
+  subnet_ids = module.network.private_subnet_ids
+
+  security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
+
+  execution_role_arn = module.ecs_iam.execution_role_arn
+
+  target_group_arn = (
+    module.alb.ollama_target_group_arn
+  )
+
+  registry_arn = (
+    module.service_discovery.service_arns["ollama"]
+  )
+
+  aws_region = var.aws_region
+
+  health_check_grace_period_seconds = 120
+
+  environment_variables = {
+    OLLAMA_HOST   = "0.0.0.0:11434"
+    OLLAMA_MODELS = "/root/.ollama/models"
+  }
+}
+
+module "open_webui_service" {
+  source = "./modules/ecs_service"
+
+  service_name = "open-webui"
+  cluster_id   = module.ecs_cluster.cluster_id
+
+  image = (
+    "public.ecr.aws/l8p0g0w4/open-webui:0.10.2-slim"
+  )
+
+  node_exporter_image = (
+    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
+  )
+
+  container_port     = 8080
+  node_exporter_port = 9100
+
+  cpu                               = 512
+  memory                            = 2048
+  desired_count                     = 1
+  health_check_grace_period_seconds = 300
+
+  subnet_ids = module.network.private_subnet_ids
+
+  security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
+
+  execution_role_arn = module.ecs_iam.execution_role_arn
+
+  target_group_arn = (
+    module.alb.open_webui_target_group_arn
+  )
+
+  registry_arn = (
+    module.service_discovery.service_arns["open-webui"]
+  )
+
+  aws_region = var.aws_region
+
+  environment_variables = {
+    DATABASE_TYPE = "postgresql"
+    DATABASE_HOST = module.rds.db_host
+    DATABASE_PORT = tostring(module.rds.db_port)
+    DATABASE_NAME = module.rds.db_name
+
+    OLLAMA_BASE_URL = (
+      "http://${module.alb.ollama_load_balancer_dns_name}:11434"
+    )
+
+    VECTOR_DB                 = "pgvector"
+    PGVECTOR_CREATE_EXTENSION = "false"
+
+    # WEBUI_URL = (
+    #   "http://${module.alb.public_load_balancer_dns_name}"
+    # )
+  }
+
+  secret_variables = {
+    DATABASE_USER = (
+      "${data.aws_secretsmanager_secret.rds_secrets.arn}:db_username::"
+    )
+
+    DATABASE_PASSWORD = (
+      "${data.aws_secretsmanager_secret.rds_secrets.arn}:db_password::"
+    )
   }
 }

@@ -68,3 +68,25 @@ variable "environment_variables" {
   type        = map(string)
   default     = {}
 }
+
+variable "node_exporter_image" {
+  description = "ECR image URI for Node Exporter"
+  type        = string
+}
+
+variable "node_exporter_port" {
+  description = "Node Exporter container port"
+  type        = number
+}
+
+variable "secret_variables" {
+  description = "Secrets Manager values passed to the application container"
+  type        = map(string)
+  default     = {}
+}
+
+variable "health_check_grace_period_seconds" {
+  description = "Time ECS ignores failed load balancer health checks after task startup"
+  type        = number
+  default     = 60
+}

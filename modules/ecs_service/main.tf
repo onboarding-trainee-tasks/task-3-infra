@@ -7,6 +7,7 @@ resource "aws_ecs_task_definition" "this" {
   family                   = var.service_name
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
+  pid_mode                 = "task"
 
   cpu    = var.cpu
   memory = var.memory
@@ -21,6 +22,7 @@ resource "aws_ecs_task_definition" "this" {
 
       portMappings = [
         {
+          name          = "${var.service_name}-port"
           containerPort = var.container_port
           hostPort      = var.container_port
           protocol      = "tcp"
@@ -34,6 +36,13 @@ resource "aws_ecs_task_definition" "this" {
         }
       ]
 
+      secrets = [
+        for name, value_from in var.secret_variables : {
+          name      = name
+          valueFrom = value_from
+        }
+      ]
+
       logConfiguration = {
         logDriver = "awslogs"
 
@@ -41,6 +50,35 @@ resource "aws_ecs_task_definition" "this" {
           awslogs-group         = aws_cloudwatch_log_group.this.name
           awslogs-region        = var.aws_region
           awslogs-stream-prefix = var.service_name
+        }
+      }
+    },
+
+    {
+      name      = "node-exporter"
+      image     = var.node_exporter_image
+      essential = true
+
+      portMappings = [
+        {
+          name          = "node-exporter-port"
+          containerPort = var.node_exporter_port
+          hostPort      = var.node_exporter_port
+          protocol      = "tcp"
+        }
+      ]
+
+      command = [
+        "--web.listen-address=:${var.node_exporter_port}"
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.this.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "node-exporter"
         }
       }
     }
@@ -78,7 +116,7 @@ resource "aws_ecs_service" "this" {
     registry_arn = var.registry_arn
   }
 
-  health_check_grace_period_seconds = 60
+  health_check_grace_period_seconds = (var.health_check_grace_period_seconds)
 
   deployment_circuit_breaker {
     enable   = true

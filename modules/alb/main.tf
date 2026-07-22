@@ -130,3 +130,71 @@ resource "aws_lb_listener" "ollama" {
     target_group_arn = aws_lb_target_group.ollama.arn
   }
 }
+
+resource "aws_lb_target_group" "prometheus" {
+  name        = var.prometheus_target_group_name
+  port        = var.prometheus_target_group_port
+  protocol    = var.prometheus_target_group_protocol
+  vpc_id      = var.vpc_id
+  target_type = var.target_type
+
+  health_check {
+    path     = var.prometheus_health_check_path
+    protocol = var.prometheus_target_group_protocol
+    matcher  = var.health_check_matcher
+
+    interval            = var.health_check_interval
+    timeout             = var.health_check_timeout
+    healthy_threshold   = var.healthy_threshold
+    unhealthy_threshold = var.unhealthy_threshold
+  }
+
+  tags = merge(var.tags, {
+    Name = var.prometheus_target_group_name
+  })
+}
+
+resource "aws_lb_listener" "prometheus" {
+  load_balancer_arn = aws_lb.ollama.arn
+  port              = var.prometheus_listener_port
+  protocol          = var.prometheus_listener_protocol
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.prometheus.arn
+  }
+}
+
+resource "aws_lb_target_group" "alertmanager" {
+  name        = var.alertmanager_target_group_name
+  port        = var.alertmanager_target_group_port
+  protocol    = var.alertmanager_target_group_protocol
+  vpc_id      = var.vpc_id
+  target_type = var.target_type
+
+  health_check {
+    path     = var.alertmanager_health_check_path
+    protocol = var.alertmanager_target_group_protocol
+    matcher  = var.health_check_matcher
+
+    interval            = var.health_check_interval
+    timeout             = var.health_check_timeout
+    healthy_threshold   = var.healthy_threshold
+    unhealthy_threshold = var.unhealthy_threshold
+  }
+
+  tags = merge(var.tags, {
+    Name = var.alertmanager_target_group_name
+  })
+}
+
+resource "aws_lb_listener" "alertmanager" {
+  load_balancer_arn = aws_lb.ollama.arn
+  port              = var.alertmanager_listener_port
+  protocol          = var.alertmanager_listener_protocol
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.alertmanager.arn
+  }
+}

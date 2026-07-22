@@ -123,6 +123,66 @@ variable "ollama_health_check_path" {
   type        = string
 }
 
+variable "prometheus_target_group_name" {
+  description = "Prometheus target group name"
+  type        = string
+}
+
+variable "prometheus_target_group_port" {
+  description = "Prometheus target group port"
+  type        = number
+}
+
+variable "prometheus_target_group_protocol" {
+  description = "Prometheus target group protocol"
+  type        = string
+}
+
+variable "prometheus_health_check_path" {
+  description = "Prometheus health check path"
+  type        = string
+}
+
+variable "prometheus_listener_port" {
+  description = "Prometheus listener port"
+  type        = number
+}
+
+variable "prometheus_listener_protocol" {
+  description = "Prometheus listener protocol"
+  type        = string
+}
+
+variable "alertmanager_target_group_name" {
+  description = "Alertmanager target group name"
+  type        = string
+}
+
+variable "alertmanager_target_group_port" {
+  description = "Alertmanager target group port"
+  type        = number
+}
+
+variable "alertmanager_target_group_protocol" {
+  description = "Alertmanager target group protocol"
+  type        = string
+}
+
+variable "alertmanager_health_check_path" {
+  description = "Alertmanager health check path"
+  type        = string
+}
+
+variable "alertmanager_listener_port" {
+  description = "Alertmanager listener port"
+  type        = number
+}
+
+variable "alertmanager_listener_protocol" {
+  description = "Alertmanager listener protocol"
+  type        = string
+}
+
 variable "target_type" {
   description = "Target group target type. Fargate requires ip"
   type        = string
@@ -153,3 +213,4 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+

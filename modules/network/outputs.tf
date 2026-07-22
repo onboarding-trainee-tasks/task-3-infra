@@ -5,17 +5,17 @@ output "vpc_id" {
 
 output "public_subnet_ids" {
   description = "A list of public subnet IDs"
-  value       = [ for subnet in aws_subnet.this : subnet.id if subnet.tags["Type"] == "public" ]
+  value       = [for subnet in aws_subnet.this : subnet.id if subnet.tags["Type"] == "public"]
 }
 
 output "private_subnet_ids" {
   description = "A list of private subnet IDs"
-  value       = [ for subnet in aws_subnet.this : subnet.id if subnet.tags["Type"] == "private" ]
+  value       = [for subnet in aws_subnet.this : subnet.id if subnet.tags["Type"] == "private"]
 }
 
 output "database_subnet_ids" {
   description = "A list of database subnet IDs"
-  value       = [ for subnet in aws_subnet.this : subnet.id if subnet.tags["Type"] == "database" ]
+  value       = [for subnet in aws_subnet.this : subnet.id if subnet.tags["Type"] == "database"]
 }
 
 output "public_route_table_id" {

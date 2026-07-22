@@ -49,3 +49,18 @@ output "ollama_target_group_arn" {
 output "ollama_target_group_arn_suffix" {
   value = aws_lb_target_group.ollama.arn_suffix
 }
+
+output "prometheus_target_group_arn" {
+  description = "Prometheus target group ARN"
+  value       = aws_lb_target_group.prometheus.arn
+}
+
+output "alertmanager_target_group_arn" {
+  description = "Alertmanager target group ARN"
+  value       = aws_lb_target_group.alertmanager.arn
+}
+
+output "internal_load_balancer_dns_name" {
+  description = "Shared internal load balancer DNS name"
+  value       = aws_lb.ollama.dns_name
+}
