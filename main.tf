@@ -39,10 +39,10 @@ module "security_group" {
   security_groups = {
     bastion_sg = {
       name                    = "bastion_sg"
-      tcp_ingress_ports       = [22]
+      tcp_ingress_ports       = [22, 9100]
       udp_ingress_ports       = []
       allowed_cidr_blocks     = var.allowed_cidr_blocks
-      allowed_security_groups = []
+      allowed_security_groups = ["ecs_tasks_sg"]
     }
 
     alb_sg = {
@@ -58,9 +58,7 @@ module "security_group" {
       tcp_ingress_ports   = [11434, 9090, 9093]
       udp_ingress_ports   = []
       allowed_cidr_blocks = []
-      allowed_security_groups = [
-        "ecs_tasks_sg"
-      ]
+      allowed_security_groups = ["ecs_tasks_sg"]
     }
 
     ecs_tasks_sg = {
@@ -105,6 +103,23 @@ module "iam" {
   secret_arns = [
     data.aws_secretsmanager_secret.rds_secrets.arn
   ]
+
+  ecs_execution_role_name = (
+    "${var.project}-${var.environment}-ecs-execution-role"
+  )
+
+  ecs_secret_arns = [
+    data.aws_secretsmanager_secret.rds_secrets.arn,
+    data.aws_secretsmanager_secret.smtp_secrets.arn
+  ]
+
+  grafana_task_role_name = (
+    "${var.project}-${var.environment}-grafana-task-role"
+  )
+
+  prometheus_task_role_name = (
+    "${var.project}-${var.environment}-prometheus-task-role"
+  )
 }
 
 module "bastion_instance" {
@@ -150,19 +165,6 @@ module "service_discovery" {
   ]
 }
 
-module "ecs_iam" {
-  source = "./modules/ecs_iam"
-
-  role_name = ("${var.project}-${var.environment}-ecs-execution-role")
-
-  grafana_task_role_name = ("${var.project}-${var.environment}-grafana-task-role")
-
-  secret_arns = [
-    data.aws_secretsmanager_secret.rds_secrets.arn,
-    data.aws_secretsmanager_secret.smtp_secrets.arn
-  ]
-}
-
 module "alb" {
   source = "./modules/alb"
 
@@ -189,11 +191,9 @@ module "alb" {
   grafana_rule_priority = 10
   grafana_path_patterns = ["/grafana", "/grafana/*"]
 
-  ollama_lb_name = "${var.project}-${var.environment}-ollama-alb"
-
-  ollama_security_group_ids = [module.security_group.sg_ids["internal_alb_sg"]]
-
-  ollama_subnet_ids = module.network.private_subnet_ids
+  internal_lb_name            = ("${var.project}-${var.environment}-internal-alb")
+  internal_security_group_ids = [module.security_group.sg_ids["internal_alb_sg"]]
+  internal_subnet_ids         = module.network.private_subnet_ids
 
   ollama_target_group_name     = "${var.project}-${var.environment}-ollama-tg"
   ollama_target_group_port     = 11434
@@ -237,7 +237,7 @@ module "grafana_service" {
   cluster_id   = module.ecs_cluster.cluster_id
 
   image = (
-    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/grafana:13.1.1-llm5"
+    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/grafana:13.1.1-llm6"
   )
 
   node_exporter_image = (
@@ -255,8 +255,8 @@ module "grafana_service" {
 
   security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
 
-  execution_role_arn = module.ecs_iam.execution_role_arn
-  task_role_arn      = module.ecs_iam.grafana_task_role_arn
+  execution_role_arn = module.iam.ecs_execution_role_arn
+  task_role_arn      = module.iam.grafana_task_role_arn
 
   target_group_arn = module.alb.grafana_target_group_arn
 
@@ -282,7 +282,7 @@ module "prometheus_service" {
   cluster_id   = module.ecs_cluster.cluster_id
 
   image = (
-    "public.ecr.aws/l8p0g0w4/prometheus:3.13.0-llm1"
+    "public.ecr.aws/l8p0g0w4/prometheus:3.13.0-llm2"
   )
 
   node_exporter_image = (
@@ -300,7 +300,8 @@ module "prometheus_service" {
 
   security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
 
-  execution_role_arn = module.ecs_iam.execution_role_arn
+  execution_role_arn = module.iam.ecs_execution_role_arn
+  task_role_arn      = module.iam.prometheus_task_role_arn
 
   target_group_arn = (
     module.alb.prometheus_target_group_arn
@@ -338,7 +339,7 @@ module "alertmanager_service" {
 
   security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
 
-  execution_role_arn = module.ecs_iam.execution_role_arn
+  execution_role_arn = module.iam.ecs_execution_role_arn
 
   target_group_arn = (
     module.alb.alertmanager_target_group_arn
@@ -381,7 +382,7 @@ module "ollama_service" {
 
   security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
 
-  execution_role_arn = module.ecs_iam.execution_role_arn
+  execution_role_arn = module.iam.ecs_execution_role_arn
 
   target_group_arn = (
     module.alb.ollama_target_group_arn
@@ -427,7 +428,7 @@ module "open_webui_service" {
 
   security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
 
-  execution_role_arn = module.ecs_iam.execution_role_arn
+  execution_role_arn = module.iam.ecs_execution_role_arn
 
   target_group_arn = (
     module.alb.open_webui_target_group_arn
@@ -445,16 +446,10 @@ module "open_webui_service" {
     DATABASE_PORT = tostring(module.rds.db_port)
     DATABASE_NAME = module.rds.db_name
 
-    OLLAMA_BASE_URL = (
-      "http://${module.alb.ollama_load_balancer_dns_name}:11434"
-    )
+    OLLAMA_BASE_URL = ("http://${module.alb.internal_load_balancer_dns_name}:11434")
 
     VECTOR_DB                 = "pgvector"
     PGVECTOR_CREATE_EXTENSION = "false"
-
-    # WEBUI_URL = (
-    #   "http://${module.alb.public_load_balancer_dns_name}"
-    # )
   }
 
   secret_variables = {

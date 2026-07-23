@@ -30,18 +30,6 @@ output "grafana_target_group_arn_suffix" {
   value = aws_lb_target_group.grafana.arn_suffix
 }
 
-output "ollama_load_balancer_arn" {
-  value = aws_lb.ollama.arn
-}
-
-output "ollama_load_balancer_dns_name" {
-  value = aws_lb.ollama.dns_name
-}
-
-output "ollama_load_balancer_arn_suffix" {
-  value = aws_lb.ollama.arn_suffix
-}
-
 output "ollama_target_group_arn" {
   value = aws_lb_target_group.ollama.arn
 }
@@ -62,5 +50,15 @@ output "alertmanager_target_group_arn" {
 
 output "internal_load_balancer_dns_name" {
   description = "Shared internal load balancer DNS name"
-  value       = aws_lb.ollama.dns_name
+  value       = aws_lb.internal.dns_name
+}
+
+output "internal_load_balancer_arn" {
+  description = "Shared internal load balancer ARN"
+  value       = aws_lb.internal.arn
+}
+
+output "internal_load_balancer_arn_suffix" {
+  description = "Shared internal load balancer ARN suffix"
+  value       = aws_lb.internal.arn_suffix
 }

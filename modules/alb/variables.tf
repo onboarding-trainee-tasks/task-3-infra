@@ -78,18 +78,18 @@ variable "grafana_path_patterns" {
   type        = list(string)
 }
 
-variable "ollama_lb_name" {
-  description = "Name of the internal Ollama ALB"
+variable "internal_lb_name" {
+  description = "Name of the shared internal Application Load Balancer"
   type        = string
 }
 
-variable "ollama_security_group_ids" {
-  description = "Security groups associated with the internal Ollama ALB"
+variable "internal_security_group_ids" {
+  description = "Security groups associated with the internal ALB"
   type        = list(string)
 }
 
-variable "ollama_subnet_ids" {
-  description = "Private subnet IDs for the internal Ollama ALB"
+variable "internal_subnet_ids" {
+  description = "Private subnet IDs for the internal ALB"
   type        = list(string)
 }
 

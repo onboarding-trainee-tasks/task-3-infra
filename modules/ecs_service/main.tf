@@ -98,8 +98,9 @@ resource "aws_ecs_service" "this" {
   task_definition = aws_ecs_task_definition.this.arn
   desired_count   = var.desired_count
 
-  launch_type      = "FARGATE"
-  platform_version = "LATEST"
+  launch_type                   = "FARGATE"
+  platform_version              = "LATEST"
+  availability_zone_rebalancing = "ENABLED"
 
   network_configuration {
     subnets          = var.subnet_ids

@@ -84,16 +84,16 @@ resource "aws_lb_listener_rule" "grafana" {
   }
 }
 
-resource "aws_lb" "ollama" {
-  name               = var.ollama_lb_name
+resource "aws_lb" "internal" {
+  name               = var.internal_lb_name
   internal           = true
   load_balancer_type = "application"
 
-  security_groups = var.ollama_security_group_ids
-  subnets         = var.ollama_subnet_ids
+  security_groups = var.internal_security_group_ids
+  subnets         = var.internal_subnet_ids
 
   tags = merge(var.tags, {
-    Name = var.ollama_lb_name
+    Name = var.internal_lb_name
   })
 }
 
@@ -121,7 +121,7 @@ resource "aws_lb_target_group" "ollama" {
 }
 
 resource "aws_lb_listener" "ollama" {
-  load_balancer_arn = aws_lb.ollama.arn
+  load_balancer_arn = aws_lb.internal.arn
   port              = var.ollama_listener_port
   protocol          = var.ollama_listener_protocol
 
@@ -155,7 +155,7 @@ resource "aws_lb_target_group" "prometheus" {
 }
 
 resource "aws_lb_listener" "prometheus" {
-  load_balancer_arn = aws_lb.ollama.arn
+  load_balancer_arn = aws_lb.internal.arn
   port              = var.prometheus_listener_port
   protocol          = var.prometheus_listener_protocol
 
@@ -189,7 +189,7 @@ resource "aws_lb_target_group" "alertmanager" {
 }
 
 resource "aws_lb_listener" "alertmanager" {
-  load_balancer_arn = aws_lb.ollama.arn
+  load_balancer_arn = aws_lb.internal.arn
   port              = var.alertmanager_listener_port
   protocol          = var.alertmanager_listener_protocol
 
