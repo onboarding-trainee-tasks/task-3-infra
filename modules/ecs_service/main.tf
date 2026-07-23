@@ -21,6 +21,11 @@ resource "aws_ecs_task_definition" "this" {
       image     = var.image
       essential = true
 
+      restartPolicy = {
+        enabled              = true
+        restartAttemptPeriod = 60
+      }
+
       portMappings = [
         {
           name          = "${var.service_name}-port"
@@ -59,6 +64,11 @@ resource "aws_ecs_task_definition" "this" {
       name      = "node-exporter"
       image     = var.node_exporter_image
       essential = true
+
+      restartPolicy = {
+        enabled              = true
+        restartAttemptPeriod = 60
+      }
 
       portMappings = [
         {

@@ -96,3 +96,64 @@ variable "health_check_grace_period_seconds" {
   type        = number
   default     = 60
 }
+
+variable "cluster_name" {
+  description = "Name of the ECS cluster"
+  type        = string
+}
+
+variable "autoscaling_enabled" {
+  description = "Whether ECS Service Auto Scaling is enabled"
+  type        = bool
+  default     = false
+}
+
+variable "autoscaling_min_capacity" {
+  description = "Minimum number of ECS tasks"
+  type        = number
+  default     = 1
+}
+
+variable "autoscaling_max_capacity" {
+  description = "Maximum number of ECS tasks"
+  type        = number
+  default     = 1
+}
+
+variable "autoscaling_cpu_target" {
+  description = "Target average ECS service CPU utilization"
+  type        = number
+  default     = null
+
+  validation {
+    condition = (
+      var.autoscaling_cpu_target == null
+      || (
+        var.autoscaling_cpu_target > 0
+        && var.autoscaling_cpu_target <= 100
+      )
+    )
+
+    error_message = (
+      "autoscaling_cpu_target must be null or between 1 and 100."
+    )
+  }
+}
+
+variable "autoscaling_memory_target" {
+  description = "Target average ECS service memory utilization"
+  type        = number
+  default     = null
+}
+
+variable "autoscaling_scale_out_cooldown" {
+  description = "Seconds to wait after a scale-out activity"
+  type        = number
+  default     = 60
+}
+
+variable "autoscaling_scale_in_cooldown" {
+  description = "Seconds to wait after a scale-in activity"
+  type        = number
+  default     = 300
+}

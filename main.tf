@@ -54,10 +54,10 @@ module "security_group" {
     }
 
     internal_alb_sg = {
-      name                = "internal_alb_sg"
-      tcp_ingress_ports   = [11434, 9090, 9093]
-      udp_ingress_ports   = []
-      allowed_cidr_blocks = []
+      name                    = "internal_alb_sg"
+      tcp_ingress_ports       = [11434, 9090, 9093]
+      udp_ingress_ports       = []
+      allowed_cidr_blocks     = []
       allowed_security_groups = ["ecs_tasks_sg"]
     }
 
@@ -235,9 +235,10 @@ module "grafana_service" {
 
   service_name = "grafana"
   cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
 
   image = (
-    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/grafana:13.1.1-llm6"
+    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/grafana:13.1.1-llm8"
   )
 
   node_exporter_image = (
@@ -280,6 +281,7 @@ module "prometheus_service" {
 
   service_name = "prometheus"
   cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
 
   image = (
     "public.ecr.aws/l8p0g0w4/prometheus:3.13.0-llm2"
@@ -319,6 +321,7 @@ module "alertmanager_service" {
 
   service_name = "alertmanager"
   cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
 
   image = (
     "public.ecr.aws/l8p0g0w4/alertmanager:0.33.1-llm3"
@@ -362,6 +365,7 @@ module "ollama_service" {
 
   service_name = "ollama"
   cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
 
   image = (
     "public.ecr.aws/l8p0g0w4/ollama-tinyllama:0.32.1-tinyllama-llm2"
@@ -377,6 +381,13 @@ module "ollama_service" {
   cpu           = 1024
   memory        = 2048
   desired_count = 2
+
+  autoscaling_enabled            = true
+  autoscaling_min_capacity       = 2
+  autoscaling_max_capacity       = 4
+  autoscaling_cpu_target         = 70
+  autoscaling_scale_out_cooldown = 120
+  autoscaling_scale_in_cooldown  = 600
 
   subnet_ids = module.network.private_subnet_ids
 
@@ -407,6 +418,7 @@ module "open_webui_service" {
 
   service_name = "open-webui"
   cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
 
   image = (
     "public.ecr.aws/l8p0g0w4/open-webui:0.10.2-slim"
@@ -423,6 +435,14 @@ module "open_webui_service" {
   memory                            = 2048
   desired_count                     = 1
   health_check_grace_period_seconds = 300
+
+  autoscaling_enabled            = true
+  autoscaling_min_capacity       = 1
+  autoscaling_max_capacity       = 3
+  autoscaling_cpu_target         = 60
+  autoscaling_memory_target      = 70
+  autoscaling_scale_out_cooldown = 60
+  autoscaling_scale_in_cooldown  = 300
 
   subnet_ids = module.network.private_subnet_ids
 
