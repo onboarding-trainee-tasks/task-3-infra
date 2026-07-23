@@ -54,8 +54,8 @@ module "security_group" {
     }
 
     internal_alb_sg = {
-      name = "internal_alb_sg"
-      tcp_ingress_ports = [11434, 9090, 9093]
+      name                = "internal_alb_sg"
+      tcp_ingress_ports   = [11434, 9090, 9093]
       udp_ingress_ports   = []
       allowed_cidr_blocks = []
       allowed_security_groups = [
@@ -66,15 +66,15 @@ module "security_group" {
     ecs_tasks_sg = {
       name = "ecs_tasks_sg"
       tcp_ingress_ports = [
-        3000,  # Grafana
-        8080,  # Open WebUI
-        9090,  # Prometheus
-        9093,  # Alertmanager
-        9100,  # Node Exporter
-        11434  # Ollama
+        3000, # Grafana
+        8080, # Open WebUI
+        9090, # Prometheus
+        9093, # Alertmanager
+        9100, # Node Exporter
+        11434 # Ollama
       ]
-      udp_ingress_ports   = []
-      allowed_cidr_blocks = []
+      udp_ingress_ports       = []
+      allowed_cidr_blocks     = []
       allowed_security_groups = ["alb_sg", "internal_alb_sg", "ecs_tasks_sg"]
     }
 
@@ -153,9 +153,14 @@ module "service_discovery" {
 module "ecs_iam" {
   source = "./modules/ecs_iam"
 
-  role_name = "${var.project}-${var.environment}-ecs-execution-role"
+  role_name = ("${var.project}-${var.environment}-ecs-execution-role")
 
-  secret_arns = [data.aws_secretsmanager_secret.rds_secrets.arn]
+  grafana_task_role_name = ("${var.project}-${var.environment}-grafana-task-role")
+
+  secret_arns = [
+    data.aws_secretsmanager_secret.rds_secrets.arn,
+    data.aws_secretsmanager_secret.smtp_secrets.arn
+  ]
 }
 
 module "alb" {
@@ -232,7 +237,7 @@ module "grafana_service" {
   cluster_id   = module.ecs_cluster.cluster_id
 
   image = (
-    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/grafana:13.1.1-llm1"
+    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/grafana:13.1.1-llm5"
   )
 
   node_exporter_image = (
@@ -251,6 +256,7 @@ module "grafana_service" {
   security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
 
   execution_role_arn = module.ecs_iam.execution_role_arn
+  task_role_arn      = module.ecs_iam.grafana_task_role_arn
 
   target_group_arn = module.alb.grafana_target_group_arn
 
@@ -307,6 +313,49 @@ module "prometheus_service" {
   aws_region = var.aws_region
 }
 
+module "alertmanager_service" {
+  source = "./modules/ecs_service"
+
+  service_name = "alertmanager"
+  cluster_id   = module.ecs_cluster.cluster_id
+
+  image = (
+    "public.ecr.aws/l8p0g0w4/alertmanager:0.33.1-llm3"
+  )
+
+  node_exporter_image = (
+    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
+  )
+
+  container_port     = 9093
+  node_exporter_port = 9100
+
+  cpu           = 512
+  memory        = 1024
+  desired_count = 1
+
+  subnet_ids = module.network.private_subnet_ids
+
+  security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
+
+  execution_role_arn = module.ecs_iam.execution_role_arn
+
+  target_group_arn = (
+    module.alb.alertmanager_target_group_arn
+  )
+
+  registry_arn = (
+    module.service_discovery.service_arns["alertmanager"]
+  )
+
+  secret_variables = {
+    SMTP_PASSWORD = (
+      "${data.aws_secretsmanager_secret.smtp_secrets.arn}:smtp_password::"
+    )
+  }
+  aws_region = var.aws_region
+}
+
 module "ollama_service" {
   source = "./modules/ecs_service"
 
@@ -314,7 +363,7 @@ module "ollama_service" {
   cluster_id   = module.ecs_cluster.cluster_id
 
   image = (
-    "public.ecr.aws/l8p0g0w4/ollama-tinyllama:0.32.1-tinyllama-llm1"
+    "public.ecr.aws/l8p0g0w4/ollama-tinyllama:0.32.1-tinyllama-llm2"
   )
 
   node_exporter_image = (

@@ -58,6 +58,12 @@ variable "registry_arn" {
   type        = string
 }
 
+variable "task_role_arn" {
+  description = "IAM role available to containers in the ECS task"
+  type        = string
+  default     = null
+}
+
 variable "aws_region" {
   description = "AWS region used by the awslogs driver"
   type        = string
