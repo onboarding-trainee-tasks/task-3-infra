@@ -35,3 +35,18 @@ variable "prometheus_task_role_name" {
   description = "Name of the Prometheus ECS task role"
   type        = string
 }
+
+variable "prometheus_efs_file_system_arn" {
+  description = "EFS file system ARN available to Prometheus"
+  type        = string
+}
+
+variable "prometheus_efs_access_point_arns" {
+  description = "EFS access point ARNs available to Prometheus"
+  type        = list(string)
+}
+
+variable "backup_role_name" {
+  description = "IAM role name used by AWS Backup"
+  type        = string
+}

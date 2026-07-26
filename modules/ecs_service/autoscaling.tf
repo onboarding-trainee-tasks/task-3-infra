@@ -13,12 +13,12 @@ resource "aws_appautoscaling_target" "this" {
 }
 
 resource "aws_appautoscaling_policy" "cpu" {
-  count = (var.autoscaling_enabled && var.autoscaling_cpu_target != null) ? 1 : 0
-  name = "${var.service_name}-cpu-target-tracking"
-  policy_type = "TargetTrackingScaling"
-  resource_id = (aws_appautoscaling_target.this[0].resource_id)
+  count              = (var.autoscaling_enabled && var.autoscaling_cpu_target != null) ? 1 : 0
+  name               = "${var.service_name}-cpu-target-tracking"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = (aws_appautoscaling_target.this[0].resource_id)
   scalable_dimension = (aws_appautoscaling_target.this[0].scalable_dimension)
-  service_namespace = (aws_appautoscaling_target.this[0].service_namespace)
+  service_namespace  = (aws_appautoscaling_target.this[0].service_namespace)
 
   target_tracking_scaling_policy_configuration {
     target_value = var.autoscaling_cpu_target
@@ -33,12 +33,12 @@ resource "aws_appautoscaling_policy" "cpu" {
 }
 
 resource "aws_appautoscaling_policy" "memory" {
-  count = (var.autoscaling_enabled && var.autoscaling_memory_target != null) ? 1 : 0
-  name = "${var.service_name}-memory-target-tracking"
-  policy_type = "TargetTrackingScaling"
-  resource_id = (aws_appautoscaling_target.this[0].resource_id)
+  count              = (var.autoscaling_enabled && var.autoscaling_memory_target != null) ? 1 : 0
+  name               = "${var.service_name}-memory-target-tracking"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = (aws_appautoscaling_target.this[0].resource_id)
   scalable_dimension = (aws_appautoscaling_target.this[0].scalable_dimension)
-  service_namespace = (aws_appautoscaling_target.this[0].service_namespace)
+  service_namespace  = (aws_appautoscaling_target.this[0].service_namespace)
 
   target_tracking_scaling_policy_configuration {
     target_value = var.autoscaling_memory_target

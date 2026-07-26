@@ -17,3 +17,7 @@ output "prometheus_task_role_arn" {
   description = "Prometheus ECS task role ARN"
   value       = aws_iam_role.prometheus_task.arn
 }
+
+output "backup_role_arn" {
+  value = aws_iam_role.backup.arn
+}

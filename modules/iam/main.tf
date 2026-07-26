@@ -251,3 +251,66 @@ resource "aws_iam_role_policy" "prometheus_ec2_discovery" {
     ]
   })
 }
+
+resource "aws_iam_role_policy" "prometheus_efs" {
+  name = "${var.prometheus_task_role_name}-efs"
+  role = aws_iam_role.prometheus_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid    = "MountPrometheusEFS"
+        Effect = "Allow"
+
+        Action = [
+          "elasticfilesystem:ClientMount",
+          "elasticfilesystem:ClientWrite"
+        ]
+
+        Resource = var.prometheus_efs_file_system_arn
+
+        Condition = {
+          StringEquals = {
+            "elasticfilesystem:AccessPointArn" = (
+              var.prometheus_efs_access_point_arns
+            )
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "backup" {
+  name = var.backup_role_name
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Principal = {
+          Service = "backup.amazonaws.com"
+        }
+
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "backup" {
+  role = aws_iam_role.backup.name
+
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
+}
+
+resource "aws_iam_role_policy_attachment" "restore" {
+  role = aws_iam_role.backup.name
+
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores"
+}

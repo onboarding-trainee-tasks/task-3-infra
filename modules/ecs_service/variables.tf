@@ -157,3 +157,27 @@ variable "autoscaling_scale_in_cooldown" {
   type        = number
   default     = 300
 }
+
+variable "efs_volumes" {
+  description = "EFS volumes mounted into the application container"
+
+  type = map(object({
+    file_system_id  = string
+    access_point_id = string
+    container_path  = string
+  }))
+
+  default = {}
+}
+
+variable "deployment_minimum_healthy_percent" {
+  description = "Minimum healthy task percentage during deployment"
+  type        = number
+  default     = 50
+}
+
+variable "deployment_maximum_percent" {
+  description = "Maximum task percentage during deployment"
+  type        = number
+  default     = 200
+}

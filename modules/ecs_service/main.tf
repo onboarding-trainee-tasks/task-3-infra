@@ -15,6 +15,25 @@ resource "aws_ecs_task_definition" "this" {
   execution_role_arn = var.execution_role_arn
   task_role_arn      = var.task_role_arn
 
+  dynamic "volume" {
+    for_each = var.efs_volumes
+
+    content {
+      name = volume.key
+
+      efs_volume_configuration {
+        file_system_id     = volume.value.file_system_id
+        root_directory     = "/"
+        transit_encryption = "ENABLED"
+
+        authorization_config {
+          access_point_id = volume.value.access_point_id
+          iam             = "ENABLED"
+        }
+      }
+    }
+  }
+
   container_definitions = jsonencode([
     {
       name      = var.service_name
@@ -32,6 +51,14 @@ resource "aws_ecs_task_definition" "this" {
           containerPort = var.container_port
           hostPort      = var.container_port
           protocol      = "tcp"
+        }
+      ]
+
+      mountPoints = [
+        for volume_name, volume in var.efs_volumes : {
+          sourceVolume  = volume_name
+          containerPath = volume.container_path
+          readOnly      = false
         }
       ]
 
@@ -135,8 +162,9 @@ resource "aws_ecs_service" "this" {
     rollback = true
   }
 
-  deployment_minimum_healthy_percent = 50
-  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = (var.deployment_minimum_healthy_percent)
+
+  deployment_maximum_percent = (var.deployment_maximum_percent)
 
   enable_ecs_managed_tags = true
 }

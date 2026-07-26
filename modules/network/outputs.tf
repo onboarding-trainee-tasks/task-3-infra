@@ -13,6 +13,16 @@ output "private_subnet_ids" {
   value       = [for subnet in aws_subnet.this : subnet.id if subnet.tags["Type"] == "private"]
 }
 
+output "private_subnet_ids_by_az" {
+  description = "Private subnet IDs keyed by Availability Zone"
+
+  value = {
+    for key, subnet in aws_subnet.this :
+    subnet.availability_zone => subnet.id
+    if subnet.tags["Type"] == "private"
+  }
+}
+
 output "database_subnet_ids" {
   description = "A list of database subnet IDs"
   value       = [for subnet in aws_subnet.this : subnet.id if subnet.tags["Type"] == "database"]

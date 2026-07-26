@@ -76,6 +76,17 @@ module "security_group" {
       allowed_security_groups = ["alb_sg", "internal_alb_sg", "ecs_tasks_sg"]
     }
 
+    efs_sg = {
+      name                = "efs_sg"
+      tcp_ingress_ports   = [2049]
+      udp_ingress_ports   = []
+      allowed_cidr_blocks = []
+
+      allowed_security_groups = [
+        "ecs_tasks_sg"
+      ]
+    }
+
     database_sg = {
       name                    = "database_sg"
       tcp_ingress_ports       = [5432]
@@ -96,30 +107,66 @@ module "rds" {
   allocated_storage  = var.rds_allocated_storage
 }
 
+module "prometheus_efs" {
+  source = "./modules/efs"
+
+  name = "${var.project}-${var.environment}-prometheus-efs"
+
+  subnet_ids_by_az = (
+    module.network.private_subnet_ids_by_az
+  )
+
+  security_group_ids = [
+    module.security_group.sg_ids["efs_sg"]
+  ]
+
+  partitions = {
+    "eu-central-1a" = {
+      path        = "/prometheus/partition-1"
+      uid         = 65534
+      gid         = 65534
+      permissions = "0755"
+    }
+
+    "eu-central-1b" = {
+      path        = "/prometheus/partition-2"
+      uid         = 65534
+      gid         = 65534
+      permissions = "0755"
+    }
+  }
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+    Service     = "prometheus"
+  }
+}
+
 module "iam" {
   source        = "./modules/iam"
   s3_bucket_arn = var.s3_bucket_arn
 
-  secret_arns = [
-    data.aws_secretsmanager_secret.rds_secrets.arn
-  ]
+  secret_arns = [data.aws_secretsmanager_secret.rds_secrets.arn]
 
-  ecs_execution_role_name = (
-    "${var.project}-${var.environment}-ecs-execution-role"
-  )
+  ecs_execution_role_name = ("${var.project}-${var.environment}-ecs-execution-role")
 
   ecs_secret_arns = [
     data.aws_secretsmanager_secret.rds_secrets.arn,
     data.aws_secretsmanager_secret.smtp_secrets.arn
   ]
 
-  grafana_task_role_name = (
-    "${var.project}-${var.environment}-grafana-task-role"
-  )
+  grafana_task_role_name = ("${var.project}-${var.environment}-grafana-task-role")
 
   prometheus_task_role_name = (
     "${var.project}-${var.environment}-prometheus-task-role"
   )
+
+  prometheus_efs_file_system_arn = (module.prometheus_efs.file_system_arn)
+
+  prometheus_efs_access_point_arns = values(module.prometheus_efs.access_point_arns)
+
+  backup_role_name = ("${var.project}-${var.environment}-backup-role")
 }
 
 module "bastion_instance" {
@@ -284,7 +331,7 @@ module "prometheus_service" {
   cluster_name = module.ecs_cluster.cluster_name
 
   image = (
-    "public.ecr.aws/l8p0g0w4/prometheus:3.13.0-llm2"
+    "public.ecr.aws/l8p0g0w4/prometheus:3.13.0-llm3"
   )
 
   node_exporter_image = (
@@ -296,23 +343,41 @@ module "prometheus_service" {
 
   cpu           = 512
   memory        = 1024
-  desired_count = 1
+  desired_count = 2
 
-  subnet_ids = module.network.private_subnet_ids
-
+  subnet_ids         = module.network.private_subnet_ids
   security_group_ids = [module.security_group.sg_ids["ecs_tasks_sg"]]
+
+  deployment_minimum_healthy_percent = 50
+  deployment_maximum_percent         = 200
 
   execution_role_arn = module.iam.ecs_execution_role_arn
   task_role_arn      = module.iam.prometheus_task_role_arn
 
-  target_group_arn = (
-    module.alb.prometheus_target_group_arn
-  )
+  efs_volumes = {
+    prometheus_partition_1 = {
+      file_system_id = module.prometheus_efs.file_system_id
+      access_point_id = module.prometheus_efs.access_point_ids["eu-central-1a"]
+      container_path = "/mnt/prometheus/partition-1"
+    }
 
-  registry_arn = (
-    module.service_discovery.service_arns["prometheus"]
-  )
+    prometheus_partition_2 = {
+      file_system_id = module.prometheus_efs.file_system_id
+      access_point_id = module.prometheus_efs.access_point_ids["eu-central-1b"]
+      container_path = "/mnt/prometheus/partition-2"
+    }
+  }
 
+  environment_variables = {
+    PROMETHEUS_AZ_1           = "eu-central-1a"
+    PROMETHEUS_AZ_2           = "eu-central-1b"
+    PROMETHEUS_STORAGE_PATH_1 = "/mnt/prometheus/partition-1"
+    PROMETHEUS_STORAGE_PATH_2 = "/mnt/prometheus/partition-2"
+    PROMETHEUS_RETENTION_TIME = "15d"
+  }
+
+  target_group_arn = module.alb.prometheus_target_group_arn
+  registry_arn = module.service_discovery.service_arns["prometheus"]
   aws_region = var.aws_region
 }
 
@@ -323,13 +388,9 @@ module "alertmanager_service" {
   cluster_id   = module.ecs_cluster.cluster_id
   cluster_name = module.ecs_cluster.cluster_name
 
-  image = (
-    "public.ecr.aws/l8p0g0w4/alertmanager:0.33.1-llm3"
-  )
+  image = "public.ecr.aws/l8p0g0w4/alertmanager:0.33.1-llm3"
 
-  node_exporter_image = (
-    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
-  )
+  node_exporter_image = "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
 
   container_port     = 9093
   node_exporter_port = 9100
@@ -344,13 +405,9 @@ module "alertmanager_service" {
 
   execution_role_arn = module.iam.ecs_execution_role_arn
 
-  target_group_arn = (
-    module.alb.alertmanager_target_group_arn
-  )
+  target_group_arn = module.alb.alertmanager_target_group_arn
 
-  registry_arn = (
-    module.service_discovery.service_arns["alertmanager"]
-  )
+  registry_arn = module.service_discovery.service_arns["alertmanager"]
 
   secret_variables = {
     SMTP_PASSWORD = (
@@ -367,13 +424,9 @@ module "ollama_service" {
   cluster_id   = module.ecs_cluster.cluster_id
   cluster_name = module.ecs_cluster.cluster_name
 
-  image = (
-    "public.ecr.aws/l8p0g0w4/ollama-tinyllama:0.32.1-tinyllama-llm2"
-  )
+  image = "public.ecr.aws/l8p0g0w4/ollama-tinyllama:0.32.1-tinyllama-llm2"
 
-  node_exporter_image = (
-    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
-  )
+  node_exporter_image = "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
 
   container_port     = 11434
   node_exporter_port = 9100
@@ -395,13 +448,9 @@ module "ollama_service" {
 
   execution_role_arn = module.iam.ecs_execution_role_arn
 
-  target_group_arn = (
-    module.alb.ollama_target_group_arn
-  )
+  target_group_arn = module.alb.ollama_target_group_arn
 
-  registry_arn = (
-    module.service_discovery.service_arns["ollama"]
-  )
+  registry_arn = module.service_discovery.service_arns["ollama"]
 
   aws_region = var.aws_region
 
@@ -420,13 +469,9 @@ module "open_webui_service" {
   cluster_id   = module.ecs_cluster.cluster_id
   cluster_name = module.ecs_cluster.cluster_name
 
-  image = (
-    "public.ecr.aws/l8p0g0w4/open-webui:0.10.2-slim"
-  )
+  image = "public.ecr.aws/l8p0g0w4/open-webui:0.10.2-slim"
 
-  node_exporter_image = (
-    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
-  )
+  node_exporter_image = "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
 
   container_port     = 8080
   node_exporter_port = 9100
@@ -450,13 +495,9 @@ module "open_webui_service" {
 
   execution_role_arn = module.iam.ecs_execution_role_arn
 
-  target_group_arn = (
-    module.alb.open_webui_target_group_arn
-  )
+  target_group_arn = module.alb.open_webui_target_group_arn
 
-  registry_arn = (
-    module.service_discovery.service_arns["open-webui"]
-  )
+  registry_arn = module.service_discovery.service_arns["open-webui"]
 
   aws_region = var.aws_region
 
@@ -473,12 +514,8 @@ module "open_webui_service" {
   }
 
   secret_variables = {
-    DATABASE_USER = (
-      "${data.aws_secretsmanager_secret.rds_secrets.arn}:db_username::"
-    )
+    DATABASE_USER = "${data.aws_secretsmanager_secret.rds_secrets.arn}:db_username::"
 
-    DATABASE_PASSWORD = (
-      "${data.aws_secretsmanager_secret.rds_secrets.arn}:db_password::"
-    )
+    DATABASE_PASSWORD = "${data.aws_secretsmanager_secret.rds_secrets.arn}:db_password::"
   }
 }
