@@ -57,3 +57,8 @@ variable "environment" {
   type        = string
   default     = "test"
 }
+
+variable "image_tag" {
+  description = "Common tag created by the Jenkins image pipeline"
+  type        = string
+}

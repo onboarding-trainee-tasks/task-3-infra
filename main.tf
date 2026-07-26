@@ -284,9 +284,7 @@ module "grafana_service" {
   cluster_id   = module.ecs_cluster.cluster_id
   cluster_name = module.ecs_cluster.cluster_name
 
-  image = (
-    "583955898731.dkr.ecr.eu-central-1.amazonaws.com/grafana:13.1.1-llm8"
-  )
+  image = "583955898731.dkr.ecr.eu-central-1.amazonaws.com/grafana:${var.image_tag}"
 
   node_exporter_image = (
     "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
@@ -330,9 +328,7 @@ module "prometheus_service" {
   cluster_id   = module.ecs_cluster.cluster_id
   cluster_name = module.ecs_cluster.cluster_name
 
-  image = (
-    "public.ecr.aws/l8p0g0w4/prometheus:3.13.0-llm3"
-  )
+  image = "public.ecr.aws/l8p0g0w4/prometheus:${var.image_tag}"
 
   node_exporter_image = (
     "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
@@ -356,15 +352,15 @@ module "prometheus_service" {
 
   efs_volumes = {
     prometheus_partition_1 = {
-      file_system_id = module.prometheus_efs.file_system_id
+      file_system_id  = module.prometheus_efs.file_system_id
       access_point_id = module.prometheus_efs.access_point_ids["eu-central-1a"]
-      container_path = "/mnt/prometheus/partition-1"
+      container_path  = "/mnt/prometheus/partition-1"
     }
 
     prometheus_partition_2 = {
-      file_system_id = module.prometheus_efs.file_system_id
+      file_system_id  = module.prometheus_efs.file_system_id
       access_point_id = module.prometheus_efs.access_point_ids["eu-central-1b"]
-      container_path = "/mnt/prometheus/partition-2"
+      container_path  = "/mnt/prometheus/partition-2"
     }
   }
 
@@ -377,8 +373,8 @@ module "prometheus_service" {
   }
 
   target_group_arn = module.alb.prometheus_target_group_arn
-  registry_arn = module.service_discovery.service_arns["prometheus"]
-  aws_region = var.aws_region
+  registry_arn     = module.service_discovery.service_arns["prometheus"]
+  aws_region       = var.aws_region
 }
 
 module "alertmanager_service" {
@@ -388,7 +384,7 @@ module "alertmanager_service" {
   cluster_id   = module.ecs_cluster.cluster_id
   cluster_name = module.ecs_cluster.cluster_name
 
-  image = "public.ecr.aws/l8p0g0w4/alertmanager:0.33.1-llm3"
+  image = "public.ecr.aws/l8p0g0w4/alertmanager:${var.image_tag}"
 
   node_exporter_image = "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
 
@@ -424,7 +420,7 @@ module "ollama_service" {
   cluster_id   = module.ecs_cluster.cluster_id
   cluster_name = module.ecs_cluster.cluster_name
 
-  image = "public.ecr.aws/l8p0g0w4/ollama-tinyllama:0.32.1-tinyllama-llm2"
+  image = "public.ecr.aws/l8p0g0w4/ollama-tinyllama:${var.image_tag}"
 
   node_exporter_image = "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
 
