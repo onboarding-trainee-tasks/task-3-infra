@@ -58,7 +58,22 @@ variable "environment" {
   default     = "test"
 }
 
-variable "image_tag" {
-  description = "Common tag created by the Jenkins image pipeline"
+variable "alertmanager_image_tag" {
+  description = "Alertmanager Docker image tag"
+  type        = string
+}
+
+variable "grafana_image_tag" {
+  description = "Grafana Docker image tag"
+  type        = string
+}
+
+variable "ollama_image_tag" {
+  description = "Ollama Docker image tag"
+  type        = string
+}
+
+variable "prometheus_image_tag" {
+  description = "Prometheus Docker image tag"
   type        = string
 }

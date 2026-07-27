@@ -10,23 +10,16 @@ pipeline {
         choice(
             name: 'ACTION',
             choices: [
-                'PLAN',
                 'APPLY',
                 'DESTROY'
             ],
             description: 'Terraform action'
         )
 
-        string(
-            name: 'IMAGE_TAG',
-            defaultValue: '',
-            description: 'Tag created by the images Jenkins job'
-        )
-
         booleanParam(
-            name: 'CONFIRM_DESTROY',
+            name: 'CONFIRM_ACTION',
             defaultValue: false,
-            description: 'Must be enabled for DESTROY'
+            description: 'Required for both APPLY and DESTROY'
         )
     }
 
@@ -45,21 +38,14 @@ pipeline {
         stage('Check parameters') {
             steps {
                 script {
-                    if (!params.IMAGE_TAG.trim()) {
+                    if (!params.CONFIRM_ACTION) {
                         error(
-                            'IMAGE_TAG cannot be empty. ' +
-                            'Use the tag produced by build-images.'
+                            "Enable CONFIRM_ACTION before " +
+                            "${params.ACTION}."
                         )
                     }
 
-                    if (
-                        params.ACTION == 'DESTROY' &&
-                        !params.CONFIRM_DESTROY
-                    ) {
-                        error(
-                            'Enable CONFIRM_DESTROY before DESTROY.'
-                        )
-                    }
+                    currentBuild.description = params.ACTION
                 }
             }
         }
@@ -75,11 +61,25 @@ pipeline {
                     echo "Current workspace:"
                     pwd
 
+                    echo "Current branch:"
+                    echo "${BRANCH_NAME:-not-multibranch}"
+
                     terraform version
                     aws --version
 
                     echo "AWS identity:"
                     aws sts get-caller-identity
+                '''
+            }
+        }
+
+        stage('Show image tags') {
+            steps {
+                sh '''
+                    set -eu
+
+                    echo "Image tags used by Terraform:"
+                    cat image-tags.auto.tfvars
                 '''
             }
         }
@@ -117,7 +117,7 @@ pipeline {
             }
         }
 
-        stage('Terraform plan') {
+        stage('Create Terraform plan') {
             steps {
                 sh '''
                     set -eu
@@ -126,33 +126,35 @@ pipeline {
                         terraform plan \
                             -destroy \
                             -input=false \
-                            -var="image_tag=$IMAGE_TAG" \
                             -out=tfplan
                     else
                         terraform plan \
                             -input=false \
-                            -var="image_tag=$IMAGE_TAG" \
                             -out=tfplan
                     fi
                 '''
             }
         }
 
-        stage('Apply saved plan') {
-            when {
-                expression {
-                    params.ACTION == 'APPLY' ||
-                    params.ACTION == 'DESTROY'
-                }
-            }
+        stage('Show Terraform plan') {
+            steps {
+                sh '''
+                    set -eu
 
+                    terraform show \
+                        -no-color \
+                        tfplan
+                '''
+            }
+        }
+
+        stage('Apply saved plan') {
             steps {
                 sh '''
                     set -eu
 
                     terraform apply \
                         -input=false \
-                        -auto-approve \
                         tfplan
                 '''
             }
@@ -162,15 +164,26 @@ pipeline {
     post {
         success {
             echo (
-                "Terraform ${params.ACTION} completed successfully."
+                "Terraform ${params.ACTION} " +
+                "completed successfully."
             )
         }
 
-        always {
-            cleanWs(
-                deleteDirs: true,
-                disableDeferredWipeout: true
-            )
+        failure {
+            echo 'Terraform Pipeline failed. Check the error above.'
+        }
+
+        cleanup {
+            script {
+                if (getContext(hudson.FilePath)) {
+                    cleanWs(
+                        deleteDirs: true,
+                        disableDeferredWipeout: true
+                    )
+                } else {
+                    echo 'Workspace was not allocated. Cleanup skipped.'
+                }
+            }
         }
     }
 }

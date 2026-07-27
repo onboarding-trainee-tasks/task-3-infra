@@ -284,7 +284,7 @@ module "grafana_service" {
   cluster_id   = module.ecs_cluster.cluster_id
   cluster_name = module.ecs_cluster.cluster_name
 
-  image = "583955898731.dkr.ecr.eu-central-1.amazonaws.com/grafana:${var.image_tag}"
+  image = "583955898731.dkr.ecr.eu-central-1.amazonaws.com/grafana:${var.grafana_image_tag}"
 
   node_exporter_image = (
     "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
@@ -328,7 +328,7 @@ module "prometheus_service" {
   cluster_id   = module.ecs_cluster.cluster_id
   cluster_name = module.ecs_cluster.cluster_name
 
-  image = "public.ecr.aws/l8p0g0w4/prometheus:${var.image_tag}"
+  image = "public.ecr.aws/l8p0g0w4/prometheus:${var.prometheus_image_tag}"
 
   node_exporter_image = (
     "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
@@ -384,7 +384,7 @@ module "alertmanager_service" {
   cluster_id   = module.ecs_cluster.cluster_id
   cluster_name = module.ecs_cluster.cluster_name
 
-  image = "public.ecr.aws/l8p0g0w4/alertmanager:${var.image_tag}"
+  image = "public.ecr.aws/l8p0g0w4/alertmanager:${var.alertmanager_image_tag}"
 
   node_exporter_image = "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
 
@@ -420,7 +420,7 @@ module "ollama_service" {
   cluster_id   = module.ecs_cluster.cluster_id
   cluster_name = module.ecs_cluster.cluster_name
 
-  image = "public.ecr.aws/l8p0g0w4/ollama-tinyllama:${var.image_tag}"
+  image = "public.ecr.aws/l8p0g0w4/ollama-tinyllama:${var.ollama_image_tag}"
 
   node_exporter_image = "583955898731.dkr.ecr.eu-central-1.amazonaws.com/node-exporter:v1.12.1"
 
