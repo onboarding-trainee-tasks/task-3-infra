@@ -515,3 +515,39 @@ module "open_webui_service" {
     DATABASE_PASSWORD = "${data.aws_secretsmanager_secret.rds_secrets.arn}:db_password::"
   }
 }
+
+module "backup" {
+  source = "./modules/backup"
+
+  vault_name     = "${var.project}-${var.environment}-monitoring-vault"
+  plan_name      = "${var.project}-${var.environment}-monitoring-backup"
+  rule_name      = "daily-efs-backup"
+  selection_name = "${var.project}-${var.environment}-prometheus-efs"
+
+  iam_role_arn = module.iam.backup_role_arn
+
+  resource_arns = [module.prometheus_efs.file_system_arn]
+
+  schedule          = "cron(0 2 * * ? *)"
+  start_window      = 60
+  completion_window = 240
+  delete_after_days = 35
+
+  vault_tags = {
+    Project     = var.project
+    Environment = var.environment
+    Service     = "monitoring"
+  }
+
+  plan_tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
+
+  recovery_point_tags = {
+    Project     = var.project
+    Environment = var.environment
+    Service     = "prometheus"
+    Storage     = "efs"
+  }
+}
