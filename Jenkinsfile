@@ -79,7 +79,7 @@ pipeline {
                     set -eu
 
                     echo "Image tags used by Terraform:"
-                    cat image-tags.tfvars
+                    cat image-tags.auto.tfvars
                 '''
             }
         }
