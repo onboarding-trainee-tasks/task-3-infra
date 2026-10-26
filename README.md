@@ -1,106 +1,59 @@
-# Onboarding task 3 - ECS (infra)
+# Onboarding Task 3 — ECS Infrastructure
 
-This repository deploys the application and monitoring stack to AWS ECS Fargate.
-Custom images are built by the separate images repository.
+This repository provisions the application and monitoring infrastructure on **AWS ECS Fargate** using Terraform. Custom Docker images are maintained in the companion [`task-3-images`](https://github.com/onboarding-trainee-tasks/task-3-images) repository.
 
-## Implementation Features
+## Implementation
 
-* ECS Fargate services for Grafana, Prometheus, Alertmanager, Ollama and Open WebUI
-* Public and internal Application Load Balancers
-* AWS Cloud Map service discovery
-* Prometheus persistent storage on EFS
-* AWS Backup for RDS and EFS
-* Jenkins pipeline for Terraform plan, apply and destroy
+- ECS Fargate services for **Open WebUI, Ollama, Grafana, Prometheus and Alertmanager**, with Node Exporter sidecars.
+- Public ALB for Open WebUI and Grafana; internal ALB for Ollama, Prometheus and Alertmanager.
+- AWS Cloud Map private DNS service discovery between ECS services.
+- ECS Service Auto Scaling for Open WebUI and Ollama.
+- PostgreSQL RDS with credentials retrieved from AWS Secrets Manager.
+- Encrypted Amazon EFS storage with access points for Prometheus; AWS Backup plan targeting **EFS**.
+- IAM task execution/task roles, CloudWatch Logs and Prometheus/Grafana monitoring configuration.
+- Jenkins pipeline for Terraform **PLAN, APPLY and DESTROY**, using a saved plan and manual approval before changes.
 
 ## External dependencies
 
-The following items must already exist:
+1. **AWS access** — configure AWS CLI credentials for local Terraform runs. Jenkins uses credentials with IDs `aws-access-key-id` and `aws-secret-access-key` and requires permissions for the resources managed by Terraform.
+2. **S3 Terraform backend** — bucket `tf-backend-onboarding-task`, region `eu-central-1`, state key **`infra/state-t3`**. T3 intentionally has a separate state from T2.
+3. **AWS Secrets Manager** — existing RDS credentials (`db_username`, `db_password`) and SMTP secret (`smtp_password`); the secret ARNs are configured in `data.tf`.
+4. **Docker images in ECR** — the custom Grafana, Prometheus, Alertmanager and Ollama images are built by `task-3-images`. The selected tags are declared separately in [`image-tags.auto.tfvars`](image-tags.auto.tfvars). Open WebUI and Node Exporter reference existing, separately tagged images.
+5. **Bastion AMI and EC2 Key Pair** — `packer_bastion_ami` (from T2) and the pre-existing `terraform-ssh-key` key pair in `eu-central-1`.
 
-1. **AWS credentials**
+## Run Terraform locally
 
-   Jenkins expects:
-
-   ```text
-   aws-access-key-id
-   aws-secret-access-key
-   ```
-
-2. **Terraform state bucket**
-
-   ```text
-   Bucket: tf-backend-onboarding-task
-   Region: eu-central-1
-   State key: infra/state
-   ```
-
-3. **AWS Secrets Manager secrets**
-
-   RDS secret:
-
-   ```json
-   {
-     "db_username": "...",
-     "db_password": "..."
-   }
-   ```
-
-   SMTP secret:
-
-   ```json
-   {
-     "smtp_password": "..."
-   }
-   ```
-
-   Secret ARNs are configured in `data.tf`.
-
-4. **Container images**
-
-   The following images are built by the images repository and use the common
-   `image_tag` variable:
-
-   ```text
-   grafana
-   prometheus
-   alertmanager
-   ollama-tinyllama
-   ```
-
-   Open WebUI and Node Exporter use separately versioned existing images.
-
-5. **Bastion AMI**
-
-   The AMI ID is configured in `packer_bastion_ami` (created in Task 2).
-
-6. **EC2 key pair**
-
-   ```text
-   terraform-ssh-key
-   ```
-
-## Manual run
+Use the `onb-3-infra-ecs` branch until it is merged into `main`.
 
 ```bash
 terraform init
+terraform fmt -check -recursive
 terraform validate
-
-terraform apply -var="image_tag=1.0.4"
+terraform apply
 ```
 
-To remove the infrastructure:
-
-```bash
-terraform destroy -var="image_tag=1.0.4"
-```
+Terraform automatically reads `image-tags.auto.tfvars`. There is no common `image_tag` variable; update the relevant image-specific tag when a new image is published.
 
 ## Jenkins pipeline
 
-The infrastructure job is configured for `onb-3-infra-ecs` task (change branch in Jenkins setting in case of moving to `main` branch).
+The infrastructure Jenkins job loads the `Jenkinsfile` from this repository. Configure it to use the target branch and run it on an agent with Git, Terraform and AWS CLI.
 
-Available parameters:
+`ACTION` supports:
 
-```text
-ACTION = PLAN, APPLY, DESTROY
-IMAGE_TAG = tag created by the images pipeline
-CONFIRM_DESTROY = required for DESTROY
+| Action | Behavior |
+| --- | --- |
+| `PLAN` | Initializes and validates Terraform, creates and prints a plan, then finishes **without applying**. |
+| `APPLY` | Creates and prints a plan, pauses for manual approval, and applies the **same saved plan**. |
+| `DESTROY` | Creates and prints a destroy plan, requires manual approval, and applies the **same saved plan**. |
+
+Approval times out after 20 minutes. The pipeline does not automatically deploy on a Git push. Terraform plans are kept in the Jenkins workspace only during execution and the workspace is cleaned afterward.
+
+## Access and verification
+
+After deployment, retrieve service endpoints using:
+
+```bash
+terraform output open_webui_url
+terraform output grafana_url
+terraform output ssh_command
 ```
