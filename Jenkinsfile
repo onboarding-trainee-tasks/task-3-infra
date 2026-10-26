@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -9,17 +10,8 @@ pipeline {
     parameters {
         choice(
             name: 'ACTION',
-            choices: [
-                'APPLY',
-                'DESTROY'
-            ],
-            description: 'Terraform action'
-        )
-
-        booleanParam(
-            name: 'CONFIRM_ACTION',
-            defaultValue: false,
-            description: 'Required for both APPLY and DESTROY'
+            choices: ['PLAN', 'APPLY', 'DESTROY'],
+            description: 'Terraform operation'
         )
     }
 
@@ -35,34 +27,14 @@ pipeline {
     }
 
     stages {
-        stage('Check parameters') {
-            steps {
-                script {
-                    if (!params.CONFIRM_ACTION) {
-                        error(
-                            "Enable CONFIRM_ACTION before " +
-                            "${params.ACTION}."
-                        )
-                    }
-
-                    currentBuild.description = params.ACTION
-                }
-            }
-        }
-
         stage('Check environment') {
             steps {
+                script {
+                    currentBuild.description = params.ACTION
+                }
+
                 sh '''
                     set -eu
-
-                    echo "Current user:"
-                    whoami
-
-                    echo "Current workspace:"
-                    pwd
-
-                    echo "Current branch:"
-                    echo "${BRANCH_NAME:-not-multibranch}"
 
                     terraform version
                     aws --version
@@ -89,8 +61,7 @@ pipeline {
                 sh '''
                     set -eu
 
-                    terraform init \
-                        -input=false
+                    terraform init -input=false
                 '''
             }
         }
@@ -100,9 +71,7 @@ pipeline {
                 sh '''
                     set -eu
 
-                    terraform fmt \
-                        -check \
-                        -recursive
+                    terraform fmt -check -recursive
                 '''
             }
         }
@@ -112,7 +81,7 @@ pipeline {
                 sh '''
                     set -eu
 
-                    terraform validate
+                    terraform validate -no-color
                 '''
             }
         }
@@ -126,10 +95,14 @@ pipeline {
                         terraform plan \
                             -destroy \
                             -input=false \
+                            -no-color \
+                            -lock-timeout=5m \
                             -out=tfplan
                     else
                         terraform plan \
                             -input=false \
+                            -no-color \
+                            -lock-timeout=5m \
                             -out=tfplan
                     fi
                 '''
@@ -139,22 +112,42 @@ pipeline {
         stage('Show Terraform plan') {
             steps {
                 sh '''
-                    set -eu
-
-                    terraform show \
-                        -no-color \
-                        tfplan
+                    terraform show -no-color tfplan
                 '''
             }
         }
 
+        stage('Approve Terraform plan') {
+            when {
+                expression {
+                    params.ACTION != 'PLAN'
+                }
+            }
+
+            steps {
+                timeout(time: 20, unit: 'MINUTES') {
+                    input(
+                        message: "Approve ${params.ACTION} of the saved Terraform plan?",
+                        ok: "Approve ${params.ACTION}"
+                    )
+                }
+            }
+        }
+
         stage('Apply saved plan') {
+            when {
+                expression {
+                    params.ACTION != 'PLAN'
+                }
+            }
+
             steps {
                 sh '''
                     set -eu
 
                     terraform apply \
                         -input=false \
+                        -lock-timeout=5m \
                         tfplan
                 '''
             }
@@ -163,14 +156,15 @@ pipeline {
 
     post {
         success {
-            echo (
-                "Terraform ${params.ACTION} " +
-                "completed successfully."
-            )
+            echo "Terraform ${params.ACTION} completed successfully."
         }
 
         failure {
-            echo 'Terraform Pipeline failed. Check the error above.'
+            echo 'Terraform pipeline failed. Check the logs.'
+        }
+
+        aborted {
+            echo 'Terraform pipeline was aborted.'
         }
 
         cleanup {
@@ -180,8 +174,6 @@ pipeline {
                         deleteDirs: true,
                         disableDeferredWipeout: true
                     )
-                } else {
-                    echo 'Workspace was not allocated. Cleanup skipped.'
                 }
             }
         }
