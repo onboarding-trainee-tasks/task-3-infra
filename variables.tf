@@ -4,20 +4,8 @@ variable "packer_bastion_ami" {
   default     = "ami-01dcaea3a368849c9"
 }
 
-variable "packer_llm_ami" {
-  description = "ID of AMI created by Packer for LLM Hosts"
-  type        = string
-  default     = "ami-031e1b98dc35b8aaa"
-}
-
-variable "packer_web_server_ami" {
-  description = "ID of AMI created by Packer for Web Server"
-  type        = string
-  default     = "ami-0fbbd30e2c7115049"
-}
-
 variable "allowed_cidr_blocks" {
-  description = "A list of allowed CIDR blocks for the security group"
+  description = "A list of allowed CIDR blocks for the bastion security group"
   type        = list(string)
   default     = ["178.212.0.0/16"]
 }
@@ -29,63 +17,33 @@ variable "aws_region" {
 }
 
 variable "ssh_key_name" {
-  description = "Name of the SSH key pair for EC2 instances"
+  description = "Name of the SSH key pair for the bastion host"
   type        = string
   default     = "terraform-ssh-key"
 }
 
 variable "s3_bucket_arn" {
-  description = "The ARN of the S3 bucket to allow access to"
+  description = "ARN of the S3 bucket accessible by the bastion role"
   type        = string
   default     = "arn:aws:s3:::init-sql-script"
 }
 
 variable "db_name" {
-  description = "The name of the database to create"
+  description = "Database name"
   type        = string
   default     = "postgres"
 }
 
-variable "min_instance_count" {
-  description = "The minimum number of instances for the Auto Scaling group"
-  type        = number
-  default     = 2
-}
-
-variable "max_instance_count" {
-  description = "The maximum number of instances for the Auto Scaling group"
-  type        = number
-  default     = 3
-}
-
-variable "desired_instance_count" {
-  description = "The desired number of instances for the Auto Scaling group"
-  type        = number
-  default     = 2
-}
-
 variable "rds_instance_class" {
-  description = "The instance class for the RDS instance"
+  description = "RDS instance class"
   type        = string
   default     = "db.t3.micro"
 }
 
 variable "rds_allocated_storage" {
-  description = "The allocated storage for the RDS instance in GB"
+  description = "Allocated RDS storage in GiB"
   type        = number
   default     = 5
-}
-
-variable "autoscaling_policy_value" {
-  description = "Target value for the metric"
-  type        = number
-  default     = 80
-}
-
-variable "sns_topic_name" {
-  description = "Name of the SNS Topic for CloudWatch"
-  type        = string
-  default     = "task-2-alerts"
 }
 
 variable "project" {
@@ -98,4 +56,24 @@ variable "environment" {
   description = "Environment name"
   type        = string
   default     = "test"
+}
+
+variable "alertmanager_image_tag" {
+  description = "Alertmanager Docker image tag"
+  type        = string
+}
+
+variable "grafana_image_tag" {
+  description = "Grafana Docker image tag"
+  type        = string
+}
+
+variable "ollama_image_tag" {
+  description = "Ollama Docker image tag"
+  type        = string
+}
+
+variable "prometheus_image_tag" {
+  description = "Prometheus Docker image tag"
+  type        = string
 }

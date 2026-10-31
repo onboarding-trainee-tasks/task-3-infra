@@ -1,9 +1,9 @@
-variable vpc_id {
+variable "vpc_id" {
   description = "The ID of the VPC where the security group will be created"
   type        = string
 }
 
-variable security_groups {
+variable "security_groups" {
   description = "A map of security groups to create"
   type = map(object({
     name                    = string

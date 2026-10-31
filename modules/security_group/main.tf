@@ -1,7 +1,7 @@
 resource "aws_security_group" "this" {
   for_each = var.security_groups
-  vpc_id = var.vpc_id
-  name = each.key
+  vpc_id   = var.vpc_id
+  name     = each.key
 
   egress {
     from_port   = 0
@@ -20,11 +20,11 @@ locals {
     for sg_name, sg in var.security_groups : [
       for port in sg.tcp_ingress_ports : [
         for cidr in sg.allowed_cidr_blocks : {
-          sg_name    = sg_name
-          name       = sg.name
-          protocol   = "tcp"
-          port       = port
-          cidr       = cidr
+          sg_name  = sg_name
+          name     = sg.name
+          protocol = "tcp"
+          port     = port
+          cidr     = cidr
         }
       ]
     ]
@@ -33,16 +33,16 @@ locals {
     for sg_name, sg in var.security_groups : [
       for port in sg.udp_ingress_ports : [
         for cidr in sg.allowed_cidr_blocks : {
-          sg_name    = sg_name
-          name       = sg.name
-          protocol   = "udp"
-          port       = port
-          cidr       = cidr
+          sg_name  = sg_name
+          name     = sg.name
+          protocol = "udp"
+          port     = port
+          cidr     = cidr
         }
       ]
     ]
   ])
-  
+
   sg_rules_map = {
     for idx, rule in concat(local.tcp_rules, local.udp_rules) :
     "${rule.sg_name}-${rule.protocol}-${rule.port}-${rule.cidr}" => rule
@@ -76,7 +76,7 @@ locals {
       ]
     ]
   ])
-  
+
   sg_from_sg_rules_map = {
     for idx, rule in concat(local.tcp_sg_rules, local.udp_sg_rules) :
     "${rule.sg_name}-${rule.protocol}-${rule.port}-${rule.source_sg_name}" => rule

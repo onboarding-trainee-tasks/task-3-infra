@@ -1,75 +1,216 @@
-variable "security_group_id" {
-  description = "Security group ID to associate with the ALB"
+variable "public_lb_name" {
+  description = "Name of the public Application Load Balancer"
+  type        = string
+}
+
+variable "public_security_group_ids" {
+  description = "Security groups associated with the public ALB"
   type        = list(string)
 }
 
-variable "subnet_ids" {
-  description = "List of subnet IDs to associate with the ALB"
+variable "public_subnet_ids" {
+  description = "Public subnet IDs for the public ALB"
   type        = list(string)
 }
 
 variable "vpc_id" {
-  description = "The ID of the VPC where the ALB will be created"
+  description = "VPC ID where target groups are created"
   type        = string
 }
 
-variable "lb_target_group_name" {
-  description = "The name of the target group"
-  type        = string
-  default     = "my-target-group"
-}
-
-variable "health_check_path" {
-  description = "The path for health checks"
-  type        = string
-  default     = "/"
-}
-
-variable "interval" {
-  description = "The interval for health checks"
+variable "public_listener_port" {
+  description = "Listener port of the public ALB"
   type        = number
-  default     = 30
 }
 
-variable "timeout" {
-  description = "The timeout for health checks"
+variable "public_listener_protocol" {
+  description = "Listener protocol of the public ALB"
+  type        = string
+}
+
+variable "open_webui_target_group_name" {
+  description = "Name of the Open WebUI target group"
+  type        = string
+}
+
+variable "open_webui_target_group_port" {
+  description = "Port of the Open WebUI target group"
   type        = number
-  default     = 5
+}
+
+variable "open_webui_target_group_protocol" {
+  description = "Protocol of the Open WebUI target group"
+  type        = string
+}
+
+variable "open_webui_health_check_path" {
+  description = "Health check path for Open WebUI"
+  type        = string
+}
+
+variable "grafana_target_group_name" {
+  description = "Name of the Grafana target group"
+  type        = string
+}
+
+variable "grafana_target_group_port" {
+  description = "Port of the Grafana target group"
+  type        = number
+}
+
+variable "grafana_target_group_protocol" {
+  description = "Protocol of the Grafana target group"
+  type        = string
+}
+
+variable "grafana_health_check_path" {
+  description = "Health check path for Grafana"
+  type        = string
+}
+
+variable "grafana_rule_priority" {
+  description = "Priority of the Grafana path rule"
+  type        = number
+}
+
+variable "grafana_path_patterns" {
+  description = "URL path patterns routed to Grafana"
+  type        = list(string)
+}
+
+variable "internal_lb_name" {
+  description = "Name of the shared internal Application Load Balancer"
+  type        = string
+}
+
+variable "internal_security_group_ids" {
+  description = "Security groups associated with the internal ALB"
+  type        = list(string)
+}
+
+variable "internal_subnet_ids" {
+  description = "Private subnet IDs for the internal ALB"
+  type        = list(string)
+}
+
+variable "ollama_listener_port" {
+  description = "Listener port of the internal Ollama ALB"
+  type        = number
+}
+
+variable "ollama_listener_protocol" {
+  description = "Listener protocol of the internal Ollama ALB"
+  type        = string
+}
+
+variable "ollama_target_group_name" {
+  description = "Name of the Ollama target group"
+  type        = string
+}
+
+variable "ollama_target_group_port" {
+  description = "Port of the Ollama target group"
+  type        = number
+}
+
+variable "ollama_target_group_protocol" {
+  description = "Protocol of the Ollama target group"
+  type        = string
+}
+
+variable "ollama_health_check_path" {
+  description = "Health check path for Ollama"
+  type        = string
+}
+
+variable "prometheus_target_group_name" {
+  description = "Prometheus target group name"
+  type        = string
+}
+
+variable "prometheus_target_group_port" {
+  description = "Prometheus target group port"
+  type        = number
+}
+
+variable "prometheus_target_group_protocol" {
+  description = "Prometheus target group protocol"
+  type        = string
+}
+
+variable "prometheus_health_check_path" {
+  description = "Prometheus health check path"
+  type        = string
+}
+
+variable "prometheus_listener_port" {
+  description = "Prometheus listener port"
+  type        = number
+}
+
+variable "prometheus_listener_protocol" {
+  description = "Prometheus listener protocol"
+  type        = string
+}
+
+variable "alertmanager_target_group_name" {
+  description = "Alertmanager target group name"
+  type        = string
+}
+
+variable "alertmanager_target_group_port" {
+  description = "Alertmanager target group port"
+  type        = number
+}
+
+variable "alertmanager_target_group_protocol" {
+  description = "Alertmanager target group protocol"
+  type        = string
+}
+
+variable "alertmanager_health_check_path" {
+  description = "Alertmanager health check path"
+  type        = string
+}
+
+variable "alertmanager_listener_port" {
+  description = "Alertmanager listener port"
+  type        = number
+}
+
+variable "alertmanager_listener_protocol" {
+  description = "Alertmanager listener protocol"
+  type        = string
+}
+
+variable "target_type" {
+  description = "Target group target type. Fargate requires ip"
+  type        = string
+}
+
+variable "health_check_interval" {
+  type = number
+}
+
+variable "health_check_timeout" {
+  type = number
 }
 
 variable "healthy_threshold" {
-  description = "The number of consecutive successful health checks required before considering an instance healthy"
-  type        = number
-  default     = 2
+  type = number
 }
 
 variable "unhealthy_threshold" {
-  description = "The number of consecutive failed health checks required before considering an instance unhealthy"
-  type        = number
-  default     = 2
+  type = number
 }
 
-variable "matcher" {
-  description = "The HTTP response codes to use when checking for a successful response from a target"
-  type        = string
-  default     = "200-299"
+variable "health_check_matcher" {
+  type = string
 }
 
-variable "target_group_port" {
-  description = "The port on which the target group is listening"
-  type        = number
-  default     = 11434
-}
-
-variable "target_group_protocol" {
-  description = "The protocol to use for routing traffic to the targets"
-  type        = string
-  default     = "HTTP"
-}
-
-variable "lb_listener_port" {
-  description = "The port on which the load balancer is listening"
-  type        = number
-  default     = 80
+variable "tags" {
+  description = "Tags applied to ALB resources"
+  type        = map(string)
+  default     = {}
 }
 
