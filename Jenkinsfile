@@ -117,6 +117,12 @@ pipeline {
             }
         }
 
+        stage('Validate saved plan') {
+            steps {
+                sh 'terraform show -json tfplan > /dev/null'
+            }
+        }
+
         stage('Approve Terraform plan') {
             when {
                 expression {

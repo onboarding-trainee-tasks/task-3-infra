@@ -3,11 +3,11 @@ locals {
 }
 
 resource "aws_db_subnet_group" "this" {
-  name       = "rds-subnet-group"
+  name       = "t3-rds-subnet-group"
   subnet_ids = var.subnet_ids
 
   tags = {
-    Name = "rds-subnet-group"
+    Name = "t3-rds-subnet-group"
   }
 }
 
