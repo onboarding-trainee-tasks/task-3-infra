@@ -145,6 +145,7 @@ module "prometheus_efs" {
 
 module "iam" {
   source        = "./modules/iam"
+  iam_name      = "t3-bastion"
   s3_bucket_arn = var.s3_bucket_arn
 
   secret_arns = [data.aws_secretsmanager_secret.rds_secrets.arn]
